@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0 license
 pragma solidity ^0.8.19;
 
-import {Ownable} from "../interfaces/Ownable.sol";
-import {IERC20} from "../interfaces/IERC20.sol";
-import {Evaluator7} from "./Evaluator7.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
+import {Evaluator7} from "./others/Evaluator7.sol";
 
 contract Poker is Ownable {
     enum TableState {
