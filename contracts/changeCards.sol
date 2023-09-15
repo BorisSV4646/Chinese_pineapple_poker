@@ -9,7 +9,7 @@ contract Shuffle {
     }
 
     // the location of the cards in the deck
-    Card[] public deck;
+    Card[] private deck;
 
     /**
      * @notice creating a deck of cards in order from 0 to 51 cards
@@ -26,7 +26,7 @@ contract Shuffle {
      * @notice shuffling a deck of cards
      * @dev it is necessary to hide or avoid card shuffling manipulations, since the data is open
      */
-    function shuffle() external {
+    function shuffle() private {
         uint256 deckSize = deck.length;
         for (uint256 i = 0; i < deckSize; i++) {
             uint256 j = uint256(keccak256(abi.encode(block.prevrandao, i))) %
