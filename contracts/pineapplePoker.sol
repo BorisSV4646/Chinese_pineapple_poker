@@ -41,10 +41,20 @@ contract PineapplePoker is Ownable {
         uint turn; // an index on the players array, the player who has the current turn
         address[] players; // players still playing in the round who have not folded
     }
+    struct PlayerCardHashesFirst {
+        bytes32 card1Hash;
+        bytes32 card2Hash;
+        bytes32 card3Hash;
+        bytes32 card4Hash;
+        bytes32 card5Hash;
+    }
+
     struct PlayerCardHashes {
         bytes32 card1Hash;
         bytes32 card2Hash;
+        bytes32 card3Hash;
     }
+
     struct PlayerCards {
         uint8 card1;
         uint8 card2;
@@ -56,6 +66,9 @@ contract PineapplePoker is Ownable {
     // keeps track of the remaining chips of the player in a table
     // player => tableId => remainingChips
     mapping(address => mapping(uint => uint)) public chips;
+    // player => tableId => handNum => PlayerCardHashesFirst
+    mapping(address => mapping(uint => mapping(uint => PlayerCardHashesFirst)))
+        public playerHashesFirst;
     // player => tableId => handNum => PlayerCardHashes
     mapping(address => mapping(uint => mapping(uint => PlayerCardHashes)))
         public playerHashes;
@@ -168,29 +181,13 @@ contract PineapplePoker is Ownable {
 
         round.state = true;
         round.players = table.players;
-        round.highestChip = table.bigBlind;
 
-        // initiate the small blind and the big blind
         for (uint i = 0; i < n; i++) {
-            if (i == (n - 1)) {
-                // the last player
-                // small blinds
-                round.chips[i] = table.bigBlind / 2;
-                chips[round.players[i]][_tableId] -= table.bigBlind / 2;
-            } else if (i == (n - 2)) {
-                // the last second player
-                // big blinds
-                round.chips[i] = table.bigBlind; // update the round array
-                chips[round.players[i]][_tableId] -= table.bigBlind; // reduce the players chips
-            }
-
             // save the player hashes for later use in showdown()
-            playerHashes[table.players[i]][_tableId][
+            playerHashesFirst[table.players[i]][_tableId][
                 table.totalHands
             ] = _playerCards[i];
         }
-
-        table.pot += table.bigBlind + (table.bigBlind / 2);
 
         emit CardsDealt(_playerCards, _tableId);
     }
