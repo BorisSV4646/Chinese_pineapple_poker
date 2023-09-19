@@ -78,8 +78,8 @@ contract PineapplePoker is Ownable {
     // player => tableId => handNum => PlayerCardHashesFirst
     mapping(address => mapping(uint => mapping(uint => PlayerCardHashesFirst)))
         public playerHashesFirst;
-    // player => tableId => handNum => PlayerCardHashes
-    mapping(address => mapping(uint => mapping(uint => PlayerCardHashes)))
+    // player => tableId => round => handNum => PlayerCardHashes
+    mapping(address => mapping(uint => mapping(uint => mapping(uint => PlayerCardHashes))))
         public playerHashes;
     // tableId => roundNum => Round
     mapping(uint => mapping(uint => Round)) public rounds;
