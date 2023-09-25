@@ -34,7 +34,6 @@ contract PineapplePoker is Ownable {
     // characteristics of the game table
     struct Table {
         TableState state;
-        uint totalHands; // total Hands till now
         uint currentRound; // index of the current round
         uint buyInAmount; // the minimum amount of tokens required to enter the table
         uint pointsCoast; // cost of one point
@@ -44,23 +43,11 @@ contract PineapplePoker is Ownable {
     }
     struct Round {
         bool state; // state of the round, if this is active or not
-        address[] players;
+        uint deals; // number of current deals
         bytes32[] cardPlayer1;
         bytes32[] cardPlayer2;
         bytes32[] cardPlayer3;
         bytes32[] cardPlayer4;
-    }
-    struct PlayerCardHashesFirst {
-        bytes32 card1Hash;
-        bytes32 card2Hash;
-        bytes32 card3Hash;
-        bytes32 card4Hash;
-        bytes32 card5Hash;
-    }
-    struct PlayerCardHashes {
-        bytes32 card1Hash;
-        bytes32 card2Hash;
-        bytes32 card3Hash;
     }
 
     uint public totalTables;
@@ -75,12 +62,6 @@ contract PineapplePoker is Ownable {
     // keeps track of the remaining chips of the player in a table
     // player => tableId => remainingChips
     mapping(address => mapping(uint => uint)) public chips;
-    // player => tableId => handNum => PlayerCardHashesFirst
-    mapping(address => mapping(uint => mapping(uint => PlayerCardHashesFirst)))
-        public playerHashesFirst;
-    // player => tableId => deal => handNum => PlayerCardHashes
-    mapping(address => mapping(uint => mapping(uint => mapping(uint => PlayerCardHashes))))
-        public playerHashes;
     // tableId => roundNum => Round
     mapping(uint => mapping(uint => Round)) public rounds;
 
@@ -135,22 +116,6 @@ contract PineapplePoker is Ownable {
         return cardHashes;
     }
 
-    /**
-     * @notice function for exiting the table and withdrawing chips
-     * @param _tableId id of the table the player is playing on
-     * @dev the function checks that the round is inactive and the user has a balance of chips to withdraw
-     */
-    function withdrawAndExit(uint _tableId) external {
-        require(
-            tables[_tableId].state == TableState.Inactive,
-            "Round is active"
-        );
-        require(chips[msg.sender][_tableId] > 0, "Not enough balance");
-        uint256 _amount = chips[msg.sender][_tableId];
-        chips[msg.sender][_tableId] = 0;
-        require(tables[_tableId].token.transfer(msg.sender, _amount));
-    }
-
     // TODO: need to delete empty table? How?
     // ? CREATER call this function
     /**
@@ -181,7 +146,6 @@ contract PineapplePoker is Ownable {
 
         tables[totalTables] = Table({
             state: TableState.Inactive,
-            totalHands: 0,
             currentRound: 0,
             buyInAmount: _buyInAmount,
             pointsCoast: _pointsCoast,
@@ -196,7 +160,7 @@ contract PineapplePoker is Ownable {
     }
 
     /**
-     * @dev first the players have to call this method to buy in and enter a table
+     * @notice first the players have to call this method to buy in and enter a table
      * @param _tableId the unique id of the table
      * @param _amount The amount of tokens to buy in the table. (must be greater than or equal to the minimum table buy in amount)
      */
@@ -220,7 +184,7 @@ contract PineapplePoker is Ownable {
     }
 
     /**
-     * @dev This method will be called by the owner to send the hash of the cards to all the players.
+     * @notice This method will be called by the owner to send the hash of the cards to all the players.
      * The key of the hash and the card itself will be sent privately by the owner to the player event is
      * kept onchain so that other players can later verify that there was no cheating.
      * This will deal the cards to the players and start the round
@@ -228,70 +192,234 @@ contract PineapplePoker is Ownable {
      */
     function dealCards(uint _tableId) external onlyOwner {
         Table storage table = tables[_tableId];
-        uint n = table.players.length;
+        uint lenght = table.players.length;
+        require(lenght > 1 && lenght <= 4, "Not enought plaers");
         require(table.state == TableState.Inactive, "Game already going on");
+        require(
+            allPlayersHaveMinBalance(_tableId),
+            "Not all players have the minimum balance"
+        );
+
+        // initiate round
+        Round storage round = rounds[_tableId][table.currentRound];
+
         table.state = TableState.Active;
-
-        // initiate the first round
-        Round storage round = rounds[_tableId][0];
-
         round.state = true;
-        round.players = table.players;
 
-        for (uint i = 0; i < n; i++) {
+        for (uint i = 0; i < lenght; i++) {
             // shuffle card deck
             shuffle(_tableId);
             // get 5 first card for user
             bytes32[] memory _playerCards = getCards(_tableId, 5);
             require(
-                n > 1 && _playerCards.length == 5,
+                lenght > 1 && _playerCards.length == 5,
                 "ERROR: PlayerCardHashes Length"
             );
-            // сonverting user hashes into a hash structure
-            PlayerCardHashesFirst memory playerCardHashes;
-            playerCardHashes.card1Hash = _playerCards[0];
-            playerCardHashes.card2Hash = _playerCards[1];
-            playerCardHashes.card3Hash = _playerCards[2];
-            playerCardHashes.card4Hash = _playerCards[3];
-            playerCardHashes.card5Hash = _playerCards[4];
-            // save the player hashes for later use in showdown()
-            playerHashesFirst[table.players[i]][_tableId][
-                table.totalHands
-            ] = playerCardHashes;
+            // add user cards hash to round scruct
+            if (i == 0) {
+                round.cardPlayer1 = _playerCards;
+            } else if (i == 1) {
+                round.cardPlayer2 = _playerCards;
+            } else if (i == 2) {
+                round.cardPlayer3 = _playerCards;
+            } else if (i == 3) {
+                round.cardPlayer4 = _playerCards;
+            }
         }
 
         emit CardsDealt(_tableId);
     }
 
-    function newDeal(uint _tableId, uint _numberDeal) external onlyOwner {
+    /**
+     * @notice The function distributes three cards to users and does it 4 times per round
+     * @param _tableId the unique id of the table
+     */
+    function newDeal(uint _tableId) external onlyOwner {
         Table storage table = tables[_tableId];
-        uint n = table.players.length;
-        require(table.state == TableState.Active, "Game not start");
+        uint lenght = table.players.length;
+        require(table.state == TableState.Active, "Game not started");
+        // initiate the second deals
+        Round storage round = rounds[_tableId][table.currentRound];
 
-        require(_numberDeal > 0 && _numberDeal <= 4, "Incorrect round");
+        require(round.deals < 4, "All cards have been dealt");
+        round.deals += 1;
 
-        for (uint i = 0; i < n; i++) {
+        for (uint i = 0; i < lenght; i++) {
             // shuffle card deck
             shuffle(_tableId);
-            // get 5 first card for user
+            // get 3 card for user
             bytes32[] memory _playerCards = getCards(_tableId, 3);
             require(
-                n > 1 && _playerCards.length == 5,
+                lenght > 1 && _playerCards.length == 3,
                 "ERROR: PlayerCardHashes Length"
             );
-            // сonverting user hashes into a hash structure
-            PlayerCardHashes memory playerCardHashes;
-            playerCardHashes.card1Hash = _playerCards[0];
-            playerCardHashes.card2Hash = _playerCards[1];
-            playerCardHashes.card3Hash = _playerCards[2];
-            // save the player hashes for later use in showdown()
-            playerHashes[table.players[i]][_tableId][_numberDeal][
-                table.totalHands
-            ] = playerCardHashes;
-
-            //! надо добавить раунд в раздачу первых пяти карт? зачем в мэппинге handNum?
+            // add user cards hash to round scruct
+            if (i == 0) {
+                for (uint j = 0; j < 3; j++) {
+                    round.cardPlayer1[
+                        round.cardPlayer1.length + j
+                    ] = _playerCards[j];
+                }
+            } else if (i == 1) {
+                for (uint j = 0; j < 3; j++) {
+                    round.cardPlayer2[
+                        round.cardPlayer2.length + j
+                    ] = _playerCards[j];
+                }
+            } else if (i == 2) {
+                for (uint j = 0; j < 3; j++) {
+                    round.cardPlayer3[
+                        round.cardPlayer3.length + j
+                    ] = _playerCards[j];
+                }
+            } else if (i == 3) {
+                for (uint j = 0; j < 3; j++) {
+                    round.cardPlayer4[
+                        round.cardPlayer4.length + j
+                    ] = _playerCards[j];
+                }
+            }
         }
 
         emit CardsDealt(_tableId);
+    }
+
+    /**
+     * @notice The function completes the current round, calculates the rewards
+     * @param _tableId the unique id of the table
+     * @param _playersPoints players' points
+     * @param raiseOrLose decrease or add points to the user
+     */
+    function endRound(
+        uint _tableId,
+        uint[] memory _playersPoints,
+        bool[] memory raiseOrLose
+    ) external onlyOwner {
+        Table storage table = tables[_tableId];
+        require(table.state == TableState.Active, "Game not started");
+        Round storage round = rounds[_tableId][table.currentRound];
+        require(round.deals == 4, "Not all cards have been dealt");
+
+        table.state = TableState.Showdown;
+        table.currentRound += 1;
+        round.state = false;
+
+        uint lenght = table.players.length;
+
+        for (uint i = 0; i < lenght; i++) {
+            uint playerChips = chips[table.players[i]][_tableId];
+            uint totalEarn = _playersPoints[i] * table.pointsCoast;
+            // change players balances
+            if (raiseOrLose[i]) {
+                playerChips += totalEarn;
+                chips[table.players[i]][_tableId] = playerChips;
+            } else {
+                playerChips = (totalEarn >= playerChips)
+                    ? 0
+                    : playerChips - totalEarn;
+                chips[table.players[i]][_tableId] = playerChips;
+            }
+        }
+    }
+
+    /**
+     * @notice add tokens to participate in the next round of the game
+     * @param _tableId id of the table the player is playing on
+     * @param _amount the amount of tokens to buy in the table
+     */
+    function addChips(uint _tableId, uint _amount) external {
+        Table storage table = tables[_tableId];
+        require(
+            isPlayerInTable(msg.sender, table.players),
+            "Not a player in this table"
+        );
+
+        require(table.token.transferFrom(msg.sender, address(this), _amount));
+        chips[msg.sender][_tableId] += _amount;
+    }
+
+    /**
+     * @notice function for exiting the table and withdrawing chips
+     * @param _tableId id of the table the player is playing on
+     * @dev the function checks that the round is inactive and the user has a balance of chips to withdraw
+     */
+    function withdrawAndExit(uint _tableId) external {
+        require(
+            tables[_tableId].state == TableState.Showdown,
+            "Round is active"
+        );
+        require(chips[msg.sender][_tableId] > 0, "Not enough balance");
+        uint256 _amount = chips[msg.sender][_tableId];
+        chips[msg.sender][_tableId] = 0;
+        require(tables[_tableId].token.transfer(msg.sender, _amount));
+
+        removePlayer(_tableId, msg.sender);
+
+        if (tables[_tableId].players.length == 0) {
+            tables[_tableId].state == TableState.Inactive;
+        }
+    }
+
+    /**
+     * @notice checks whether the address is a player on this table
+     * @param _player player, who add chips
+     * @param _players all players table
+     */
+    function isPlayerInTable(
+        address _player,
+        address[] memory _players
+    ) internal pure returns (bool) {
+        for (uint i = 0; i < _players.length; i++) {
+            if (_player == _players[i]) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * @notice checks that all players have a minimum balance for the game
+     * @param _tableId id of the table the player is playing on
+     */
+    function allPlayersHaveMinBalance(
+        uint _tableId
+    ) internal view returns (bool) {
+        Table storage table = tables[_tableId];
+        for (uint i = 0; i < table.players.length; i++) {
+            if (chips[table.players[i]][_tableId] < table.buyInAmount) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * @notice remove the player when leaving the table
+     * @param _tableId id of the table the player is playing on
+     * @param playerToRemove the player's address to delete
+     */
+    function removePlayer(uint _tableId, address playerToRemove) internal {
+        Table storage table = tables[_tableId];
+        uint indexToRemove = table.players.length; // set to an invalid index initially
+        // Find the index of the player to remove
+        for (uint i = 0; i < table.players.length; i++) {
+            if (table.players[i] == playerToRemove) {
+                indexToRemove = i;
+                break;
+            }
+        }
+
+        require(
+            indexToRemove != table.players.length,
+            "Player not found in table"
+        );
+        // If the player is not the last one in the array, swap with the last one
+        if (indexToRemove != table.players.length - 1) {
+            table.players[indexToRemove] = table.players[
+                table.players.length - 1
+            ];
+        }
+        // Remove the last player (which is now the player to remove)
+        table.players.pop();
     }
 }
