@@ -25,6 +25,7 @@ contract PineapplePoker is Ownable {
         uint8 rank; // 1-13
     }
     // how the player lays out the cards
+    // ?может не нужно
     struct PlayerHands {
         uint8[] topHand; // 3 cards
         uint8[] middleHand; // 5 cards
@@ -43,8 +44,11 @@ contract PineapplePoker is Ownable {
     }
     struct Round {
         bool state; // state of the round, if this is active or not
-        uint turn; // an index on the players array, the player who has the current turn
-        address[] players; // players still playing in the round who have not folded
+        address[] players;
+        bytes32[] cardPlayer1;
+        bytes32[] cardPlayer2;
+        bytes32[] cardPlayer3;
+        bytes32[] cardPlayer4;
     }
     struct PlayerCardHashesFirst {
         bytes32 card1Hash;
@@ -57,10 +61,6 @@ contract PineapplePoker is Ownable {
         bytes32 card1Hash;
         bytes32 card2Hash;
         bytes32 card3Hash;
-    }
-    struct PlayerCards {
-        uint8 card1;
-        uint8 card2;
     }
 
     uint public totalTables;
@@ -78,13 +78,11 @@ contract PineapplePoker is Ownable {
     // player => tableId => handNum => PlayerCardHashesFirst
     mapping(address => mapping(uint => mapping(uint => PlayerCardHashesFirst)))
         public playerHashesFirst;
-    // player => tableId => round => handNum => PlayerCardHashes
+    // player => tableId => deal => handNum => PlayerCardHashes
     mapping(address => mapping(uint => mapping(uint => mapping(uint => PlayerCardHashes))))
         public playerHashes;
     // tableId => roundNum => Round
     mapping(uint => mapping(uint => Round)) public rounds;
-    // tableId => int8[] community cards
-    mapping(uint => uint8[]) public communityCards;
 
     /**
      * @notice shuffling a deck of cards
@@ -175,18 +173,11 @@ contract PineapplePoker is Ownable {
         );
         address[] memory empty;
 
-        // Card[] memory cards = new Card[](52);
-        // uint256 index = 0;
-
         for (uint8 suit = 1; suit <= 4; suit++) {
             for (uint8 rank = 1; rank <= 13; rank++) {
                 decks[totalTables].push(Card(suit, rank));
-                // cards[index] = Card(suit, rank);
-                // index++;
             }
         }
-
-        // decks[totalTables] = cards;
 
         tables[totalTables] = Table({
             state: TableState.Inactive,
@@ -267,6 +258,38 @@ contract PineapplePoker is Ownable {
             playerHashesFirst[table.players[i]][_tableId][
                 table.totalHands
             ] = playerCardHashes;
+        }
+
+        emit CardsDealt(_tableId);
+    }
+
+    function newDeal(uint _tableId, uint _numberDeal) external onlyOwner {
+        Table storage table = tables[_tableId];
+        uint n = table.players.length;
+        require(table.state == TableState.Active, "Game not start");
+
+        require(_numberDeal > 0 && _numberDeal <= 4, "Incorrect round");
+
+        for (uint i = 0; i < n; i++) {
+            // shuffle card deck
+            shuffle(_tableId);
+            // get 5 first card for user
+            bytes32[] memory _playerCards = getCards(_tableId, 3);
+            require(
+                n > 1 && _playerCards.length == 5,
+                "ERROR: PlayerCardHashes Length"
+            );
+            // сonverting user hashes into a hash structure
+            PlayerCardHashes memory playerCardHashes;
+            playerCardHashes.card1Hash = _playerCards[0];
+            playerCardHashes.card2Hash = _playerCards[1];
+            playerCardHashes.card3Hash = _playerCards[2];
+            // save the player hashes for later use in showdown()
+            playerHashes[table.players[i]][_tableId][_numberDeal][
+                table.totalHands
+            ] = playerCardHashes;
+
+            //! надо добавить раунд в раздачу первых пяти карт? зачем в мэппинге handNum?
         }
 
         emit CardsDealt(_tableId);
