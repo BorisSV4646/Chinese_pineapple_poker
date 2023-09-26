@@ -1,8 +1,9 @@
 require("dotenv").config();
 require("hardhat-gas-reporter");
+require("@nomicfoundation/hardhat-toolbox");
 
 module.exports = {
-  defaultNetwork: "sepolya",
+  defaultNetwork: "hardhat",
   networks: {
     hardhat: {},
     ethers: {

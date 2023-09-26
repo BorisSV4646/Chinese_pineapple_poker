@@ -16,7 +16,6 @@ contract PineapplePoker is Ownable {
     event NewBuyIn(uint tableId, address player, uint amount);
     event CardsDealt(uint tableId);
     event RoundOver(uint tableId, uint round);
-    event CommunityCardsDealt(uint tableId, uint roundId, uint8[] cards);
     event TableShowdown(uint tableId);
 
     // deck of cards by suit and value
@@ -320,6 +319,8 @@ contract PineapplePoker is Ownable {
                 chips[table.players[i]][_tableId] = playerChips;
             }
         }
+
+        emit RoundOver(_tableId, table.currentRound - 1);
     }
 
     /**
@@ -358,6 +359,24 @@ contract PineapplePoker is Ownable {
         if (tables[_tableId].players.length == 0) {
             tables[_tableId].state == TableState.Inactive;
         }
+    }
+
+    /**
+     * @notice removes the user from the table if he does not continue playing
+     * @param _tableId id of the table the player is playing on
+     * @param playerToRemove the player's address to delete
+     */
+    function deleteUserFrontend(
+        uint _tableId,
+        address playerToRemove
+    ) external onlyOwner {
+        Table storage table = tables[_tableId];
+        require(
+            isPlayerInTable(msg.sender, table.players),
+            "Not a player in this table"
+        );
+
+        removePlayer(_tableId, playerToRemove);
     }
 
     /**
