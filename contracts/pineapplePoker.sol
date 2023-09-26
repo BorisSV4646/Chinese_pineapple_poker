@@ -14,21 +14,22 @@ contract PineapplePoker is Ownable {
 
     event NewTableCreated(uint tableId, Table table);
     event NewBuyIn(uint tableId, address player, uint amount);
-    event CardsDealt(uint tableId);
+    event CardsDealt(
+        uint tableId,
+        uint round,
+        bytes32[] cardHashes,
+        uint numberPlayer
+    );
     event RoundOver(uint tableId, uint round);
     event TableShowdown(uint tableId);
+    event AddChips(uint tableId, uint amount, address user);
+    event ExitUser(uint tableId, uint amount, address user);
+    event CheckCards(uint tableId, address user);
 
     // deck of cards by suit and value
     struct Card {
         uint8 suit; // 1-4
         uint8 rank; // 1-13
-    }
-    // how the player lays out the cards
-    // ?может не нужно
-    struct PlayerHands {
-        uint8[] topHand; // 3 cards
-        uint8[] middleHand; // 5 cards
-        uint8[] bottomHand; // 5 cards
     }
     // characteristics of the game table
     struct Table {
@@ -56,8 +57,8 @@ contract PineapplePoker is Ownable {
     mapping(uint => Table) public tables;
     // idTable => CardDeck
     mapping(uint256 => Card[]) private decks;
-    // idTable => cardHash => cardNumber
-    mapping(uint => mapping(bytes32 => uint256)) private cardHashToNumber;
+    // idTable => cardHash => card
+    mapping(uint => mapping(bytes32 => Card)) private cardHashToNumber;
     // keeps track of the remaining chips of the player in a table
     // player => tableId => remainingChips
     mapping(address => mapping(uint => uint)) public chips;
@@ -85,8 +86,6 @@ contract PineapplePoker is Ownable {
         nonce += 1;
     }
 
-    // TODO: сделать еще хэширование выдаваемых картм и исключение из колоды
-
     /**
      * @notice the function outputs random maps and caches them
      * @param _tableId id of the table the player is playing on
@@ -103,7 +102,9 @@ contract PineapplePoker is Ownable {
                 keccak256(abi.encode(block.prevrandao, i, nonce))
             ) % deckSize;
             cardHashes[i] = keccak256(abi.encode(cardNumber));
-            cardHashToNumber[_tableId][cardHashes[i]] = cardNumber;
+            cardHashToNumber[_tableId][cardHashes[i]] = decks[_tableId][
+                cardNumber
+            ];
 
             // delete card from deck
             decks[_tableId][cardNumber] = decks[_tableId][deckSize - 1];
@@ -116,7 +117,6 @@ contract PineapplePoker is Ownable {
     }
 
     // TODO: need to delete empty table? How?
-    // ? CREATER call this function
     /**
      * @notice creates a table
      * @param _buyInAmount the minimum amount of tokens required to enter the table
@@ -214,6 +214,9 @@ contract PineapplePoker is Ownable {
                 lenght > 1 && _playerCards.length == 5,
                 "ERROR: PlayerCardHashes Length"
             );
+
+            emit CardsDealt(_tableId, table.currentRound, _playerCards, i);
+
             // add user cards hash to round scruct
             if (i == 0) {
                 round.cardPlayer1 = _playerCards;
@@ -225,8 +228,6 @@ contract PineapplePoker is Ownable {
                 round.cardPlayer4 = _playerCards;
             }
         }
-
-        emit CardsDealt(_tableId);
     }
 
     /**
@@ -252,35 +253,28 @@ contract PineapplePoker is Ownable {
                 lenght > 1 && _playerCards.length == 3,
                 "ERROR: PlayerCardHashes Length"
             );
+
+            emit CardsDealt(_tableId, table.currentRound, _playerCards, i);
+
             // add user cards hash to round scruct
             if (i == 0) {
                 for (uint j = 0; j < 3; j++) {
-                    round.cardPlayer1[
-                        round.cardPlayer1.length + j
-                    ] = _playerCards[j];
+                    round.cardPlayer1.push(_playerCards[j]);
                 }
             } else if (i == 1) {
                 for (uint j = 0; j < 3; j++) {
-                    round.cardPlayer2[
-                        round.cardPlayer2.length + j
-                    ] = _playerCards[j];
+                    round.cardPlayer2.push(_playerCards[j]);
                 }
             } else if (i == 2) {
                 for (uint j = 0; j < 3; j++) {
-                    round.cardPlayer3[
-                        round.cardPlayer3.length + j
-                    ] = _playerCards[j];
+                    round.cardPlayer3.push(_playerCards[j]);
                 }
             } else if (i == 3) {
                 for (uint j = 0; j < 3; j++) {
-                    round.cardPlayer4[
-                        round.cardPlayer4.length + j
-                    ] = _playerCards[j];
+                    round.cardPlayer4.push(_playerCards[j]);
                 }
             }
         }
-
-        emit CardsDealt(_tableId);
     }
 
     /**
@@ -337,6 +331,8 @@ contract PineapplePoker is Ownable {
 
         require(table.token.transferFrom(msg.sender, address(this), _amount));
         chips[msg.sender][_tableId] += _amount;
+
+        emit AddChips(_tableId, _amount, msg.sender);
     }
 
     /**
@@ -359,6 +355,8 @@ contract PineapplePoker is Ownable {
         if (tables[_tableId].players.length == 0) {
             tables[_tableId].state == TableState.Inactive;
         }
+
+        emit ExitUser(_tableId, _amount, msg.sender);
     }
 
     /**
@@ -377,6 +375,24 @@ contract PineapplePoker is Ownable {
         );
 
         removePlayer(_tableId, playerToRemove);
+    }
+
+    /**
+     * @notice the user checks his cards in the blockchain
+     * @param _tableId id of the table the player is playing on
+     */
+    function checkingCards(
+        uint _tableId
+    ) external view returns (Card[] memory) {
+        Table storage table = tables[_tableId];
+        require(
+            isPlayerInTable(msg.sender, table.players),
+            "Not a player in this table"
+        );
+
+        uint index = getPlayerIndex(_tableId, msg.sender);
+
+        return getCardNumbersForPlayer(_tableId, table.currentRound - 1, index);
     }
 
     /**
@@ -440,5 +456,58 @@ contract PineapplePoker is Ownable {
         }
         // Remove the last player (which is now the player to remove)
         table.players.pop();
+    }
+
+    /**
+     * @notice find out the index of the user's address in the array of users at the table
+     * @param _tableId id of the table the player is playing on
+     * @param _player the player's address to know index
+     */
+    function getPlayerIndex(
+        uint _tableId,
+        address _player
+    ) internal view returns (uint) {
+        Table storage table = tables[_tableId];
+        for (uint i = 0; i < table.players.length; i++) {
+            if (table.players[i] == _player) {
+                return i;
+            }
+        }
+        revert("Player not found");
+    }
+
+    /**
+     * @notice returns an array Card[] of user cards
+     * @param _tableId id of the table the player is playing on
+     * @param _roundId the number of the last round
+     * @param playerNumber the player's index
+     */
+    function getCardNumbersForPlayer(
+        uint _tableId,
+        uint _roundId,
+        uint playerNumber
+    ) internal view returns (Card[] memory) {
+        Round storage round = rounds[_tableId][_roundId];
+        bytes32[] memory playerCards;
+
+        if (playerNumber == 1) {
+            playerCards = round.cardPlayer1;
+        } else if (playerNumber == 2) {
+            playerCards = round.cardPlayer2;
+        } else if (playerNumber == 3) {
+            playerCards = round.cardPlayer3;
+        } else if (playerNumber == 4) {
+            playerCards = round.cardPlayer4;
+        } else {
+            revert("Invalid player number");
+        }
+
+        Card[] memory checkCardsUser = new Card[](playerCards.length);
+
+        for (uint i = 0; i < playerCards.length; i++) {
+            checkCardsUser[i] = cardHashToNumber[_tableId][playerCards[i]];
+        }
+
+        return checkCardsUser;
     }
 }
