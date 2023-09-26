@@ -44,10 +44,7 @@ contract PineapplePoker is Ownable {
     struct Round {
         bool state; // state of the round, if this is active or not
         uint deals; // number of current deals
-        bytes32[] cardPlayer1;
-        bytes32[] cardPlayer2;
-        bytes32[] cardPlayer3;
-        bytes32[] cardPlayer4;
+        bytes32[][] playerCards;
     }
 
     uint public totalTables;
@@ -191,42 +188,21 @@ contract PineapplePoker is Ownable {
      */
     function dealCards(uint _tableId) external onlyOwner {
         Table storage table = tables[_tableId];
-        uint lenght = table.players.length;
-        require(lenght > 1 && lenght <= 4, "Not enought plaers");
         require(table.state == TableState.Inactive, "Game already going on");
         require(
             allPlayersHaveMinBalance(_tableId),
             "Not all players have the minimum balance"
         );
 
-        // initiate round
         Round storage round = rounds[_tableId][table.currentRound];
-
         table.state = TableState.Active;
         round.state = true;
 
-        for (uint i = 0; i < lenght; i++) {
-            // shuffle card deck
+        for (uint i = 0; i < table.players.length; i++) {
             shuffle(_tableId);
-            // get 5 first card for user
-            bytes32[] memory _playerCards = getCards(_tableId, 5);
-            require(
-                lenght > 1 && _playerCards.length == 5,
-                "ERROR: PlayerCardHashes Length"
-            );
-
-            emit CardsDealt(_tableId, table.currentRound, _playerCards, i);
-
-            // add user cards hash to round scruct
-            if (i == 0) {
-                round.cardPlayer1 = _playerCards;
-            } else if (i == 1) {
-                round.cardPlayer2 = _playerCards;
-            } else if (i == 2) {
-                round.cardPlayer3 = _playerCards;
-            } else if (i == 3) {
-                round.cardPlayer4 = _playerCards;
-            }
+            bytes32[] memory cardsForPlayer = getCards(_tableId, 5);
+            emit CardsDealt(_tableId, table.currentRound, cardsForPlayer, i);
+            round.playerCards[i] = cardsForPlayer; // Simplified card assignment
         }
     }
 
@@ -236,44 +212,16 @@ contract PineapplePoker is Ownable {
      */
     function newDeal(uint _tableId) external onlyOwner {
         Table storage table = tables[_tableId];
-        uint lenght = table.players.length;
         require(table.state == TableState.Active, "Game not started");
-        // initiate the second deals
         Round storage round = rounds[_tableId][table.currentRound];
-
         require(round.deals < 4, "All cards have been dealt");
         round.deals += 1;
 
-        for (uint i = 0; i < lenght; i++) {
-            // shuffle card deck
+        for (uint i = 0; i < table.players.length; i++) {
             shuffle(_tableId);
-            // get 3 card for user
-            bytes32[] memory _playerCards = getCards(_tableId, 3);
-            require(
-                lenght > 1 && _playerCards.length == 3,
-                "ERROR: PlayerCardHashes Length"
-            );
-
-            emit CardsDealt(_tableId, table.currentRound, _playerCards, i);
-
-            // add user cards hash to round scruct
-            if (i == 0) {
-                for (uint j = 0; j < 3; j++) {
-                    round.cardPlayer1.push(_playerCards[j]);
-                }
-            } else if (i == 1) {
-                for (uint j = 0; j < 3; j++) {
-                    round.cardPlayer2.push(_playerCards[j]);
-                }
-            } else if (i == 2) {
-                for (uint j = 0; j < 3; j++) {
-                    round.cardPlayer3.push(_playerCards[j]);
-                }
-            } else if (i == 3) {
-                for (uint j = 0; j < 3; j++) {
-                    round.cardPlayer4.push(_playerCards[j]);
-                }
-            }
+            bytes32[] memory cardsForPlayer = getCards(_tableId, 3);
+            emit CardsDealt(_tableId, table.currentRound, cardsForPlayer, i);
+            round.playerCards[i] = cardsForPlayer; // Simplified card assignment
         }
     }
 
@@ -487,23 +435,15 @@ contract PineapplePoker is Ownable {
         uint _roundId,
         uint playerNumber
     ) internal view returns (Card[] memory) {
-        Round storage round = rounds[_tableId][_roundId];
-        bytes32[] memory playerCards;
+        require(
+            playerNumber >= 1 && playerNumber <= 4,
+            "Invalid player number"
+        );
 
-        if (playerNumber == 1) {
-            playerCards = round.cardPlayer1;
-        } else if (playerNumber == 2) {
-            playerCards = round.cardPlayer2;
-        } else if (playerNumber == 3) {
-            playerCards = round.cardPlayer3;
-        } else if (playerNumber == 4) {
-            playerCards = round.cardPlayer4;
-        } else {
-            revert("Invalid player number");
-        }
+        Round storage round = rounds[_tableId][_roundId];
+        bytes32[] memory playerCards = round.playerCards[playerNumber - 1];
 
         Card[] memory checkCardsUser = new Card[](playerCards.length);
-
         for (uint i = 0; i < playerCards.length; i++) {
             checkCardsUser[i] = cardHashToNumber[_tableId][playerCards[i]];
         }
