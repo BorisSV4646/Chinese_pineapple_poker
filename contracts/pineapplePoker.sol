@@ -254,7 +254,9 @@ contract PineapplePoker is Ownable {
                 i,
                 round.deals - 1
             );
-            round.playerCards[i] = cardsForPlayer; // Simplified card assignment
+            for (uint j = 0; j < cardsForPlayer.length; j++) {
+                round.playerCards[i].push(cardsForPlayer[j]);
+            }
         }
     }
 

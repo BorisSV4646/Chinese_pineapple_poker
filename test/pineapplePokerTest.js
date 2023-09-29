@@ -527,14 +527,23 @@ describe("PineapplePoker EndRound", function () {
         .to.emit(poker, "DeleteUser")
         .withArgs(0, otherAccount1.address);
 
+      await expect(
+        poker.exitTable(0, otherAccount3.address)
+      ).to.be.revertedWith("Not a valid player or not enough balance");
+
       await poker.exitTable(0, otherAccount2.address);
 
       const table = await poker.tables(0);
       expect(table.state).to.equal(0);
+    });
+  });
 
-      await expect(
-        poker.exitTable(0, otherAccount3.address)
-      ).to.be.revertedWith("Not a valid player or not enough balance");
+  describe("Function checkingCards", function () {
+    it("СheckingCards work correctly", async function () {
+      const { poker, user1 } = await loadFixture(deployEndRound);
+
+      const cards = await user1.checkingCards(0);
+      console.log("🚀 ~ file: pineapplePokerTest.js:546 ~ cards:", cards);
     });
   });
 });
