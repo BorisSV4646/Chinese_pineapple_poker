@@ -7,24 +7,32 @@ import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 contract PineapplePoker is Ownable {
     // information is the table open or closed
     enum TableState {
-        Active,
         Inactive,
+        Active,
         Showdown
     }
 
     event NewTableCreated(uint tableId, Table table);
     event NewBuyIn(uint tableId, address player, uint amount);
-    event CardsDealt(
+    event CardsDealtFirst(
         uint tableId,
         uint round,
         bytes32[] cardHashes,
         uint numberPlayer
+    );
+    event CardsDealtSecond(
+        uint tableId,
+        uint round,
+        bytes32[] cardHashes,
+        uint numberPlayer,
+        uint numberDeal
     );
     event RoundOver(uint tableId, uint round);
     event TableShowdown(uint tableId);
     event AddChips(uint tableId, uint amount, address user);
     event ExitUser(uint tableId, uint amount, address user);
     event CheckCards(uint tableId, address user);
+    event DeleteUser(uint tableId, address playerToRemove);
 
     // deck of cards by suit and value
     struct Card {
@@ -67,13 +75,13 @@ contract PineapplePoker is Ownable {
      * @param _tableId id of the table the player is playing on
      * @dev it is necessary to hide or avoid card shuffling manipulations, since the data is open
      */
-    function shuffle(uint _tableId) private {
+    function shuffle(uint _tableId, address _user) private {
         uint256 deckSize = decks[_tableId].length;
         require(deckSize > 0, "Deck is empty");
 
         for (uint256 i = 0; i < deckSize; i++) {
             uint256 j = uint256(
-                keccak256(abi.encode(block.prevrandao, i, nonce))
+                keccak256(abi.encode(block.prevrandao, i, nonce, _user))
             ) % deckSize;
             Card memory tmpCard = decks[_tableId][i];
             decks[_tableId][i] = decks[_tableId][j];
@@ -90,13 +98,14 @@ contract PineapplePoker is Ownable {
      */
     function getCards(
         uint _tableId,
-        uint _numberCards
+        uint _numberCards,
+        address _user
     ) private returns (bytes32[] memory) {
         uint256 deckSize = decks[_tableId].length;
         bytes32[] memory cardHashes = new bytes32[](_numberCards);
         for (uint256 i = 0; i < _numberCards; i++) {
             uint256 cardNumber = uint256(
-                keccak256(abi.encode(block.prevrandao, i, nonce))
+                keccak256(abi.encode(block.prevrandao, i, nonce, _user))
             ) % deckSize;
             cardHashes[i] = keccak256(abi.encode(cardNumber));
             cardHashToNumber[_tableId][cardHashes[i]] = decks[_tableId][
@@ -106,6 +115,7 @@ contract PineapplePoker is Ownable {
             // delete card from deck
             decks[_tableId][cardNumber] = decks[_tableId][deckSize - 1];
             decks[_tableId].pop();
+            deckSize--;
         }
 
         nonce += 1;
@@ -188,7 +198,7 @@ contract PineapplePoker is Ownable {
      */
     function dealCards(uint _tableId) external onlyOwner {
         Table storage table = tables[_tableId];
-        require(table.state == TableState.Inactive, "Game already going on");
+        require(table.state != TableState.Active, "Game already going on");
         require(
             allPlayersHaveMinBalance(_tableId),
             "Not all players have the minimum balance"
@@ -199,9 +209,22 @@ contract PineapplePoker is Ownable {
         round.state = true;
 
         for (uint i = 0; i < table.players.length; i++) {
-            shuffle(_tableId);
-            bytes32[] memory cardsForPlayer = getCards(_tableId, 5);
-            emit CardsDealt(_tableId, table.currentRound, cardsForPlayer, i);
+            round.playerCards.push(new bytes32[](0));
+        }
+
+        for (uint i = 0; i < table.players.length; i++) {
+            shuffle(_tableId, table.players[i]);
+            bytes32[] memory cardsForPlayer = getCards(
+                _tableId,
+                5,
+                table.players[i]
+            );
+            emit CardsDealtFirst(
+                _tableId,
+                table.currentRound,
+                cardsForPlayer,
+                i
+            );
             round.playerCards[i] = cardsForPlayer; // Simplified card assignment
         }
     }
@@ -218,9 +241,19 @@ contract PineapplePoker is Ownable {
         round.deals += 1;
 
         for (uint i = 0; i < table.players.length; i++) {
-            shuffle(_tableId);
-            bytes32[] memory cardsForPlayer = getCards(_tableId, 3);
-            emit CardsDealt(_tableId, table.currentRound, cardsForPlayer, i);
+            shuffle(_tableId, table.players[i]);
+            bytes32[] memory cardsForPlayer = getCards(
+                _tableId,
+                3,
+                table.players[i]
+            );
+            emit CardsDealtSecond(
+                _tableId,
+                table.currentRound,
+                cardsForPlayer,
+                i,
+                round.deals - 1
+            );
             round.playerCards[i] = cardsForPlayer; // Simplified card assignment
         }
     }
@@ -284,45 +317,44 @@ contract PineapplePoker is Ownable {
     }
 
     /**
-     * @notice function for exiting the table and withdrawing chips
+     * @notice function for a player to exit the table, withdraw chips, and remove the player from the table
      * @param _tableId id of the table the player is playing on
-     * @dev the function checks that the round is inactive and the user has a balance of chips to withdraw
+     * @param playerAddress address of the player who wants to exit (this can be the caller or another player if the caller is the owner)
      */
-    function withdrawAndExit(uint _tableId) external {
+    function exitTable(uint _tableId, address playerAddress) external {
         require(
             tables[_tableId].state == TableState.Showdown,
             "Round is active"
         );
-        require(chips[msg.sender][_tableId] > 0, "Not enough balance");
-        uint256 _amount = chips[msg.sender][_tableId];
-        chips[msg.sender][_tableId] = 0;
-        require(tables[_tableId].token.transfer(msg.sender, _amount));
-
-        removePlayer(_tableId, msg.sender);
-
-        if (tables[_tableId].players.length == 0) {
-            tables[_tableId].state == TableState.Inactive;
-        }
-
-        emit ExitUser(_tableId, _amount, msg.sender);
-    }
-
-    /**
-     * @notice removes the user from the table if he does not continue playing
-     * @param _tableId id of the table the player is playing on
-     * @param playerToRemove the player's address to delete
-     */
-    function deleteUserFrontend(
-        uint _tableId,
-        address playerToRemove
-    ) external onlyOwner {
-        Table storage table = tables[_tableId];
         require(
-            isPlayerInTable(msg.sender, table.players),
-            "Not a player in this table"
+            chips[playerAddress][_tableId] > 0 ||
+                isPlayerInTable(playerAddress, tables[_tableId].players),
+            "Not a valid player or not enough balance"
         );
 
-        removePlayer(_tableId, playerToRemove);
+        // If the function caller is not the playerAddress, ensure the caller is the owner
+        if (msg.sender != playerAddress) {
+            require(
+                msg.sender == owner(),
+                "Only the owner can remove other players"
+            );
+        }
+
+        uint256 _amount = chips[playerAddress][_tableId];
+        chips[playerAddress][_tableId] = 0;
+        require(tables[_tableId].token.transfer(playerAddress, _amount));
+
+        removePlayer(_tableId, playerAddress);
+
+        if (tables[_tableId].players.length == 0) {
+            tables[_tableId].state = TableState.Inactive;
+        }
+
+        if (msg.sender == playerAddress) {
+            emit ExitUser(_tableId, _amount, playerAddress);
+        } else {
+            emit DeleteUser(_tableId, playerAddress);
+        }
     }
 
     /**
@@ -333,6 +365,10 @@ contract PineapplePoker is Ownable {
         uint _tableId
     ) external view returns (Card[] memory) {
         Table storage table = tables[_tableId];
+        require(
+            tables[_tableId].state == TableState.Showdown,
+            "Round is active"
+        );
         require(
             isPlayerInTable(msg.sender, table.players),
             "Not a player in this table"
@@ -383,14 +419,7 @@ contract PineapplePoker is Ownable {
      */
     function removePlayer(uint _tableId, address playerToRemove) internal {
         Table storage table = tables[_tableId];
-        uint indexToRemove = table.players.length; // set to an invalid index initially
-        // Find the index of the player to remove
-        for (uint i = 0; i < table.players.length; i++) {
-            if (table.players[i] == playerToRemove) {
-                indexToRemove = i;
-                break;
-            }
-        }
+        uint indexToRemove = getPlayerIndex(_tableId, playerToRemove);
 
         require(
             indexToRemove != table.players.length,
@@ -436,12 +465,12 @@ contract PineapplePoker is Ownable {
         uint playerNumber
     ) internal view returns (Card[] memory) {
         require(
-            playerNumber >= 1 && playerNumber <= 4,
+            playerNumber >= 0 && playerNumber <= 3,
             "Invalid player number"
         );
 
         Round storage round = rounds[_tableId][_roundId];
-        bytes32[] memory playerCards = round.playerCards[playerNumber - 1];
+        bytes32[] memory playerCards = round.playerCards[playerNumber];
 
         Card[] memory checkCardsUser = new Card[](playerCards.length);
         for (uint i = 0; i < playerCards.length; i++) {
