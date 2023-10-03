@@ -107,7 +107,7 @@ contract PineapplePoker is Ownable {
             uint256 cardNumber = uint256(
                 keccak256(abi.encode(block.prevrandao, i, nonce, _user))
             ) % deckSize;
-            cardHashes[i] = keccak256(abi.encode(cardNumber));
+            cardHashes[i] = keccak256(abi.encode(cardNumber, i, nonce, _user));
             cardHashToNumber[_tableId][cardHashes[i]] = decks[_tableId][
                 cardNumber
             ];

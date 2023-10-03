@@ -324,7 +324,7 @@ describe("PineapplePoker Functions", function () {
     });
 
     it("Checks and events are working", async function () {
-      const { poker } = await loadFixture(deployCreateTableFixture);
+      const { poker, user1 } = await loadFixture(deployCreateTableFixture);
 
       await poker.dealCards(0);
 
@@ -337,6 +337,10 @@ describe("PineapplePoker Functions", function () {
       );
 
       await poker.newDeal(0);
+
+      await expect(user1.checkingCards(0)).to.be.revertedWith(
+        "Round is active"
+      );
 
       const endRoud = await poker.endRound(0, [7, 7], [true, false]);
 
@@ -543,7 +547,11 @@ describe("PineapplePoker EndRound", function () {
       const { poker, user1 } = await loadFixture(deployEndRound);
 
       const cards = await user1.checkingCards(0);
-      console.log("🚀 ~ file: pineapplePokerTest.js:546 ~ cards:", cards);
+      expect(cards.length).to.equal(17);
+
+      await expect(poker.checkingCards(0)).to.be.revertedWith(
+        "Not a player in this table"
+      );
     });
   });
 });
