@@ -1,0 +1,304 @@
+{
+  "manifestVersion": "3.2",
+  "admin": {
+    "address": "0x3907bE3f7BAb45E7e1C88167278A058506435233",
+    "txHash": "0x22b193569a17835bd62ccdecaa1ab914113d8c48bad0246d08c7e386fac586cf"
+  },
+  "proxies": [
+    {
+      "address": "0xA5a1d68E64d15B69Bd353FfE70A0761fFcf08BBd",
+      "txHash": "0x2f0669db9ff6d725d40773d9cc6903895e5f99a34d5da128d7a9d3c341a734e3",
+      "kind": "transparent"
+    }
+  ],
+  "impls": {
+    "43ff34ff3293aaab53b05678062bf4719632b8dca4265b64a2e2a3cb1fd01f12": {
+      "address": "0xC2d132AE5cEc0553C15E4Da65C1172244B76Ab3a",
+      "txHash": "0xa26700b81073fd1b00cff0abc9438c0852af2c40fd37a146cb5ab72084836b90",
+      "layout": {
+        "solcVersion": "0.8.19",
+        "storage": [
+          {
+            "label": "_initialized",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_uint8",
+            "contract": "Initializable",
+            "src": "@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:63",
+            "retypedFrom": "bool"
+          },
+          {
+            "label": "_initializing",
+            "offset": 1,
+            "slot": "0",
+            "type": "t_bool",
+            "contract": "Initializable",
+            "src": "@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:68"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ContextUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\utils\\ContextUpgradeable.sol:36"
+          },
+          {
+            "label": "_owner",
+            "offset": 0,
+            "slot": "51",
+            "type": "t_address",
+            "contract": "OwnableUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\access\\OwnableUpgradeable.sol:22"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "52",
+            "type": "t_array(t_uint256)49_storage",
+            "contract": "OwnableUpgradeable",
+            "src": "@openzeppelin\\contracts-upgradeable\\access\\OwnableUpgradeable.sol:94"
+          },
+          {
+            "label": "totalTables",
+            "offset": 0,
+            "slot": "101",
+            "type": "t_uint256",
+            "contract": "PineapplePokerProxy",
+            "src": "contracts\\pineapplePokerProxy.sol:60"
+          },
+          {
+            "label": "nonce",
+            "offset": 0,
+            "slot": "102",
+            "type": "t_uint256",
+            "contract": "PineapplePokerProxy",
+            "src": "contracts\\pineapplePokerProxy.sol:61"
+          },
+          {
+            "label": "tables",
+            "offset": 0,
+            "slot": "103",
+            "type": "t_mapping(t_uint256,t_struct(Table)3265_storage)",
+            "contract": "PineapplePokerProxy",
+            "src": "contracts\\pineapplePokerProxy.sol:64"
+          },
+          {
+            "label": "decks",
+            "offset": 0,
+            "slot": "104",
+            "type": "t_mapping(t_uint256,t_array(t_struct(Card)3247_storage)dyn_storage)",
+            "contract": "PineapplePokerProxy",
+            "src": "contracts\\pineapplePokerProxy.sol:66"
+          },
+          {
+            "label": "cardHashToNumber",
+            "offset": 0,
+            "slot": "105",
+            "type": "t_mapping(t_uint256,t_mapping(t_bytes32,t_struct(Card)3247_storage))",
+            "contract": "PineapplePokerProxy",
+            "src": "contracts\\pineapplePokerProxy.sol:68"
+          },
+          {
+            "label": "chips",
+            "offset": 0,
+            "slot": "106",
+            "type": "t_mapping(t_address,t_mapping(t_uint256,t_uint256))",
+            "contract": "PineapplePokerProxy",
+            "src": "contracts\\pineapplePokerProxy.sol:71"
+          },
+          {
+            "label": "rounds",
+            "offset": 0,
+            "slot": "107",
+            "type": "t_mapping(t_uint256,t_mapping(t_uint256,t_struct(Round)3274_storage))",
+            "contract": "PineapplePokerProxy",
+            "src": "contracts\\pineapplePokerProxy.sol:73"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_array(t_address)dyn_storage": {
+            "label": "address[]",
+            "numberOfBytes": "32"
+          },
+          "t_array(t_array(t_bytes32)dyn_storage)dyn_storage": {
+            "label": "bytes32[][]",
+            "numberOfBytes": "32"
+          },
+          "t_array(t_bytes32)dyn_storage": {
+            "label": "bytes32[]",
+            "numberOfBytes": "32"
+          },
+          "t_array(t_struct(Card)3247_storage)dyn_storage": {
+            "label": "struct PineapplePokerProxy.Card[]",
+            "numberOfBytes": "32"
+          },
+          "t_array(t_uint256)49_storage": {
+            "label": "uint256[49]",
+            "numberOfBytes": "1568"
+          },
+          "t_array(t_uint256)50_storage": {
+            "label": "uint256[50]",
+            "numberOfBytes": "1600"
+          },
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_bytes32": {
+            "label": "bytes32",
+            "numberOfBytes": "32"
+          },
+          "t_contract(IERC20Upgradeable)381": {
+            "label": "contract IERC20Upgradeable",
+            "numberOfBytes": "20"
+          },
+          "t_enum(TableState)3159": {
+            "label": "enum PineapplePokerProxy.TableState",
+            "members": [
+              "Inactive",
+              "Active",
+              "Showdown"
+            ],
+            "numberOfBytes": "1"
+          },
+          "t_mapping(t_address,t_mapping(t_uint256,t_uint256))": {
+            "label": "mapping(address => mapping(uint256 => uint256))",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_bytes32,t_struct(Card)3247_storage)": {
+            "label": "mapping(bytes32 => struct PineapplePokerProxy.Card)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint256,t_array(t_struct(Card)3247_storage)dyn_storage)": {
+            "label": "mapping(uint256 => struct PineapplePokerProxy.Card[])",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint256,t_mapping(t_bytes32,t_struct(Card)3247_storage))": {
+            "label": "mapping(uint256 => mapping(bytes32 => struct PineapplePokerProxy.Card))",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint256,t_mapping(t_uint256,t_struct(Round)3274_storage))": {
+            "label": "mapping(uint256 => mapping(uint256 => struct PineapplePokerProxy.Round))",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint256,t_struct(Round)3274_storage)": {
+            "label": "mapping(uint256 => struct PineapplePokerProxy.Round)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint256,t_struct(Table)3265_storage)": {
+            "label": "mapping(uint256 => struct PineapplePokerProxy.Table)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint256,t_uint256)": {
+            "label": "mapping(uint256 => uint256)",
+            "numberOfBytes": "32"
+          },
+          "t_struct(Card)3247_storage": {
+            "label": "struct PineapplePokerProxy.Card",
+            "members": [
+              {
+                "label": "suit",
+                "type": "t_uint8",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "rank",
+                "type": "t_uint8",
+                "offset": 1,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(Round)3274_storage": {
+            "label": "struct PineapplePokerProxy.Round",
+            "members": [
+              {
+                "label": "state",
+                "type": "t_bool",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "deals",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "playerCards",
+                "type": "t_array(t_array(t_bytes32)dyn_storage)dyn_storage",
+                "offset": 0,
+                "slot": "2"
+              }
+            ],
+            "numberOfBytes": "96"
+          },
+          "t_struct(Table)3265_storage": {
+            "label": "struct PineapplePokerProxy.Table",
+            "members": [
+              {
+                "label": "state",
+                "type": "t_enum(TableState)3159",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "currentRound",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "buyInAmount",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "pointsCoast",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "3"
+              },
+              {
+                "label": "maxPlayers",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "4"
+              },
+              {
+                "label": "players",
+                "type": "t_array(t_address)dyn_storage",
+                "offset": 0,
+                "slot": "5"
+              },
+              {
+                "label": "token",
+                "type": "t_contract(IERC20Upgradeable)381",
+                "offset": 0,
+                "slot": "6"
+              }
+            ],
+            "numberOfBytes": "224"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          },
+          "t_uint8": {
+            "label": "uint8",
+            "numberOfBytes": "1"
+          }
+        },
+        "namespaces": {}
+      }
+    }
+  }
+}

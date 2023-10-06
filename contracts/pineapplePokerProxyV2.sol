@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0 license
 pragma solidity ^0.8.19;
 
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {IERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/interfaces/IERC20Upgradeable.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-contract PineapplePoker is Ownable {
+contract PineapplePokerProxyV2 is Initializable, OwnableUpgradeable {
     // information is the table open or closed
     enum TableState {
         Inactive,
@@ -48,7 +49,7 @@ contract PineapplePoker is Ownable {
         uint pointsCoast; // cost of one point
         uint maxPlayers; // max players on the table
         address[] players; // all players
-        IERC20 token; // the token to be used to play in the table
+        IERC20Upgradeable token; // the token to be used to play in the table
     }
     struct Round {
         bool state; // state of the round, if this is active or not
@@ -124,6 +125,10 @@ contract PineapplePoker is Ownable {
         return cardHashes;
     }
 
+    function test() external pure returns (bool testtest) {
+        return true;
+    }
+
     // TODO: need to delete empty table? How?
     /**
      * @notice creates a table
@@ -158,7 +163,7 @@ contract PineapplePoker is Ownable {
             pointsCoast: _pointsCoast,
             maxPlayers: _maxPlayers,
             players: empty,
-            token: IERC20(_token)
+            token: IERC20Upgradeable(_token)
         });
 
         emit NewTableCreated(totalTables, tables[totalTables]);
@@ -514,6 +519,3 @@ contract PineapplePoker is Ownable {
         return checkCardsUser;
     }
 }
-
-// Poker contract deployed 0x312823429aaA6b749D0B8eb112c8bF31A8c072d5
-// PokerToken contract deployed 0x9ecC2971eF64a745004Bb0Aa07E1fbF521407357

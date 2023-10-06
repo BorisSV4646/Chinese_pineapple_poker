@@ -554,4 +554,14 @@ describe("PineapplePoker EndRound", function () {
       );
     });
   });
+
+  describe("Function checkingCardsFrontend", function () {
+    it("checkingCardsFrontend work correctly", async function () {
+      const { poker } = await loadFixture(deployEndRound);
+
+      const cards = await poker.checkingCardsFrontend(0);
+      expect(cards.length).to.equal(2);
+      expect(cards[0].length).to.equal(17);
+    });
+  });
 });
