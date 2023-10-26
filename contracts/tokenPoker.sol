@@ -6,9 +6,9 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 contract PineapplePokerToken is ERC20, Ownable {
-    address public constant USDT = 0xdAC17F958D2ee523a2206206994597C13D831ec7;
-    address public constant USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-    address public constant DAI = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
+    address public constant USDT = 0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9;
+    address public constant USDC = 0xaf88d065e77c8cC2239327C5EDb3A432268e5831;
+    address public constant DAI = 0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1;
 
     constructor(uint256 initialSupply) ERC20("PineapplePokerToken", "PP") {
         _mint(msg.sender, initialSupply);
@@ -28,7 +28,7 @@ contract PineapplePokerToken is ERC20, Ownable {
             "Not enough ERC20 tokens"
         );
 
-        token.transferFrom(msg.sender, address(this), amount);
+        require(token.transferFrom(msg.sender, address(this), amount));
 
         _mint(msg.sender, amount);
     }
@@ -48,7 +48,7 @@ contract PineapplePokerToken is ERC20, Ownable {
 
         _burn(msg.sender, amount);
 
-        IERC20(tokenAddress).transfer(msg.sender, amount);
+        require(IERC20(tokenAddress).transfer(msg.sender, amount));
     }
 
     function mint(uint256 amount) external onlyOwner {

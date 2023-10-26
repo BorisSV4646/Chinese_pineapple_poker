@@ -37,26 +37,19 @@ module.exports = {
     settings: {
       optimizer: {
         enabled: true,
-        runs: 4,
+        runs: 1000,
       },
     },
   },
   gasReporter: {
-    enabled: false,
+    enabled: true,
     currency: "USD",
     coinmarketcap: process.env.COINMARKETCAP_API_KEY,
+    gasPriceApi:
+      "https://api.etherscan.io/api?module=proxy&action=eth_gasPrice",
+    token: "ETH",
   },
   etherscan: {
     apiKey: process.env.ETHERSCAN_API_KEY,
   },
-  customChains: [
-    {
-      network: "arbitrum-sepolia",
-      chainId: 421614,
-      urls: {
-        apiURL: "https://sepolia-explorer.arbitrum.io/api",
-        browserURL: "https://sepolia-explorer.arbitrum.io/",
-      },
-    },
-  ],
 };
